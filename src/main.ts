@@ -15,7 +15,7 @@ export function createCLI() {
     .option(
       "-m, --model <model>",
       "Model to use via Google GenAI",
-      "gemini-2.5-flash",
+      process.env.MODEL,
     )
     .action((options) => {
       // @ts-ignore
