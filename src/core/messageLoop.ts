@@ -1,11 +1,8 @@
 import type { ChatMessage, ToolCall, ToolCallDelta } from "../api/types.js";
-import { OpenRouterClient } from "../api/client.js";
+import { GeminiClient } from "../api/client.js";
 import { getToolDefinitions } from "../tools/index.js";
 import { buildSystemPrompt } from "./systemPrompt.js";
-import {
-  executeToolCalls,
-  type ToolExecutionResult,
-} from "./toolExecutor.js";
+import { executeToolCalls, type ToolExecutionResult } from "./toolExecutor.js";
 
 export interface MessageLoopCallbacks {
   onToken: (token: string) => void;
@@ -16,10 +13,10 @@ export interface MessageLoopCallbacks {
 }
 
 export async function runMessageLoop(
-  client: OpenRouterClient,
+  client: GeminiClient,
   messages: ChatMessage[],
   model: string,
-  callbacks: MessageLoopCallbacks
+  callbacks: MessageLoopCallbacks,
 ): Promise<ChatMessage[]> {
   const systemMessage: ChatMessage = {
     role: "system",
@@ -32,7 +29,10 @@ export async function runMessageLoop(
   while (continueLoop) {
     try {
       let assistantText = "";
-      const toolCallDeltas: Map<number, { id: string; name: string; arguments: string }> = new Map();
+      const toolCallDeltas: Map<
+        number,
+        { id: string; name: string; arguments: string }
+      > = new Map();
 
       const stream = client.streamChatCompletion({
         model,
@@ -73,7 +73,7 @@ export async function runMessageLoop(
             name: tc.name,
             arguments: tc.arguments,
           },
-        })
+        }),
       );
 
       if (
@@ -111,7 +111,7 @@ export async function runMessageLoop(
       }
     } catch (error) {
       callbacks.onError(
-        error instanceof Error ? error : new Error(String(error))
+        error instanceof Error ? error : new Error(String(error)),
       );
       continueLoop = false;
     }
@@ -122,7 +122,7 @@ export async function runMessageLoop(
 
 function accumulateToolCallDelta(
   accumulator: Map<number, { id: string; name: string; arguments: string }>,
-  delta: ToolCallDelta
+  delta: ToolCallDelta,
 ) {
   const existing = accumulator.get(delta.index);
 

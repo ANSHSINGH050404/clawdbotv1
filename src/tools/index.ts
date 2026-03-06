@@ -31,7 +31,7 @@ export function getAllTools(): Tool[] {
 
 export function getToolDefinitions(): ToolDefinition[] {
   return getAllTools().map((tool) => {
-    const jsonSchema = zodToJsonSchema(tool.inputSchema, {
+    const jsonSchema = zodToJsonSchema(tool.inputSchema as any, {
       target: "openApi3",
       $refStrategy: "none",
     });

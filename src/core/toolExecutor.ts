@@ -10,7 +10,7 @@ export interface ToolExecutionResult {
 }
 
 export async function executeToolCalls(
-  toolCalls: ToolCall[]
+  toolCalls: ToolCall[],
 ): Promise<{ messages: ChatMessage[]; results: ToolExecutionResult[] }> {
   const messages: ChatMessage[] = [];
   const results: ToolExecutionResult[] = [];
@@ -43,6 +43,7 @@ export async function executeToolCalls(
         messages.push({
           role: "tool",
           tool_call_id: toolCall.id,
+          tool_name: toolCall.function.name,
           content: result.output,
         });
         results.push({ toolCall, result, callSummary, resultSummary });
@@ -57,6 +58,7 @@ export async function executeToolCalls(
     messages.push({
       role: "tool",
       tool_call_id: toolCall.id,
+      tool_name: toolCall.function.name,
       content: result.output,
     });
 

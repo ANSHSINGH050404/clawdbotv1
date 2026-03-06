@@ -6,7 +6,7 @@ import {
   type CompletedMessage,
 } from "./components/MessageList.js";
 import { Conversation } from "../core/query.js";
-import { OpenRouterClient } from "../api/client.js";
+import { GeminiClient } from "../api/client.js";
 import type { MessageLoopCallbacks } from "../core/messageLoop.js";
 
 interface REPLProps {
@@ -25,7 +25,7 @@ export function REPL({ apiKey, model }: REPLProps) {
   const msgIdRef = useRef(0);
 
   const conversationRef = useRef(
-    new Conversation(new OpenRouterClient(apiKey), model)
+    new Conversation(new GeminiClient(apiKey), model),
   );
 
   const nextId = useCallback(() => {
@@ -107,11 +107,11 @@ export function REPL({ apiKey, model }: REPLProps) {
         await conversationRef.current.send(input, callbacks);
       } catch (error) {
         callbacks.onError(
-          error instanceof Error ? error : new Error(String(error))
+          error instanceof Error ? error : new Error(String(error)),
         );
       }
     },
-    [exit, nextId]
+    [exit, nextId],
   );
 
   return (

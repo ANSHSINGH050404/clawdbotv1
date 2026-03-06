@@ -14,18 +14,18 @@ export function createCLI() {
     .version("1.0.0")
     .option(
       "-m, --model <model>",
-      "Model to use via OpenRouter",
-      "anthropic/claude-sonnet-4",
+      "Model to use via Google GenAI",
+      "gemini-2.5-flash",
     )
     .action((options) => {
       // @ts-ignore
-      const apiKey = process.env.OPENROUTER_API_KEY;
+      const apiKey = process.env.GEMINI_API_KEY;
 
       if (!apiKey) {
         // @ts-ignore
         console.error(
-          "Error: OPENROUTER_API_KEY environment variable is required.\n" +
-            "Set it with: export OPENROUTER_API_KEY=your_key_here",
+          "Error: GEMINI_API_KEY environment variable is required.\n" +
+            "Set it with: export GEMINI_API_KEY=your_key_here",
         );
         // @ts-ignore
         process.exit(1);

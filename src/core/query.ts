@@ -1,23 +1,20 @@
 import type { ChatMessage } from "../api/types.js";
-import { OpenRouterClient } from "../api/client.js";
-import {
-  runMessageLoop,
-  type MessageLoopCallbacks,
-} from "./messageLoop.js";
+import { GeminiClient } from "../api/client.js";
+import { runMessageLoop, type MessageLoopCallbacks } from "./messageLoop.js";
 
 export class Conversation {
   private messages: ChatMessage[] = [];
-  private client: OpenRouterClient;
+  private client: GeminiClient;
   private model: string;
 
-  constructor(client: OpenRouterClient, model: string) {
+  constructor(client: GeminiClient, model: string) {
     this.client = client;
     this.model = model;
   }
 
   async send(
     userMessage: string,
-    callbacks: MessageLoopCallbacks
+    callbacks: MessageLoopCallbacks,
   ): Promise<void> {
     this.messages.push({
       role: "user",
@@ -28,7 +25,7 @@ export class Conversation {
       this.client,
       this.messages,
       this.model,
-      callbacks
+      callbacks,
     );
   }
 

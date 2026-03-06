@@ -1,73 +1,139 @@
+import { GoogleGenAI } from "@google/genai";
+import type { ChatCompletionRequest, ChatCompletionChunk } from "./types.js";
 
-import type {
-  ChatCompletionRequest,
-  ChatCompletionChunk,
-} from "./types.js";
-
-const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
-
-export class OpenRouterClient {
-  private apiKey: string;
+export class GeminiClient {
+  private ai: GoogleGenAI;
 
   constructor(apiKey: string) {
-    this.apiKey = apiKey;
+    this.ai = new GoogleGenAI({ apiKey });
   }
 
   async *streamChatCompletion(
-    request: ChatCompletionRequest
+    request: ChatCompletionRequest,
   ): AsyncGenerator<ChatCompletionChunk> {
-    const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/youtube-cc",
-        "X-Title": "youtube-cc",
+    const systemInstruction =
+      request.messages.find((m) => m.role === "system")?.content || undefined;
+
+    const contents: any[] = [];
+
+    const sequence = request.messages.filter((m) => m.role !== "system");
+
+    for (const m of sequence) {
+      let role = m.role === "user" ? "user" : "model";
+      const parts: any[] = [];
+
+      if (m.role === "assistant" && m.tool_calls && m.tool_calls.length > 0) {
+        if (m.content) parts.push({ text: m.content });
+        for (const tc of m.tool_calls) {
+          parts.push({
+            functionCall: {
+              name: tc.function.name,
+              args: JSON.parse(tc.function.arguments),
+            },
+          });
+        }
+      } else if (m.role === "tool") {
+        role = "user";
+        parts.push({
+          functionResponse: {
+            name: m.tool_name || m.tool_call_id || "unknown",
+            response: {
+              result: m.content || "success",
+            },
+          },
+        });
+      } else if (m.content) {
+        parts.push({ text: m.content });
+      } else {
+        // Empty message? Skip
+        continue;
+      }
+
+      const lastContent = contents[contents.length - 1];
+      if (lastContent && lastContent.role === role) {
+        lastContent.parts.push(...parts);
+      } else {
+        contents.push({ role, parts });
+      }
+    }
+
+    const tools = request.tools
+      ? [
+          {
+            functionDeclarations: request.tools.map((t: any) => ({
+              name: t.function.name,
+              description: t.function.description,
+              parameters: t.function.parameters as any,
+            })),
+          },
+        ]
+      : undefined;
+
+    const responseStream = await this.ai.models.generateContentStream({
+      model: request.model || "gemini-2.5-flash",
+      contents,
+      config: {
+        systemInstruction,
+        tools: tools as any,
       },
-      body: JSON.stringify({ ...request, stream: true }),
     });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(
-        `OpenRouter API error (${response.status}): ${errorBody}`
-      );
-    }
+    for await (const chunk of responseStream) {
+      let content = "";
+      let tool_calls: any[] = [];
 
-    if (!response.body) {
-      throw new Error("No response body received");
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith("data: ")) continue;
-
-          const data = trimmed.slice(6);
-          if (data === "[DONE]") return;
-
-          try {
-            const chunk = JSON.parse(data) as ChatCompletionChunk;
-            yield chunk;
-          } catch {
-            // Skip malformed JSON chunks
-          }
+      if (chunk.functionCalls && chunk.functionCalls.length > 0) {
+        for (const fc of chunk.functionCalls) {
+          tool_calls.push({
+            index: tool_calls.length,
+            id: `call_${Math.random().toString(36).substring(2, 9)}`,
+            type: "function",
+            function: {
+              name: fc.name,
+              arguments: JSON.stringify(fc.args),
+            },
+          });
         }
       }
-    } finally {
-      reader.releaseLock();
+
+      if (chunk.text) {
+        content = chunk.text;
+      }
+
+      if (content || tool_calls.length > 0) {
+        const returnedChunk: any = {
+          id: `chatcmpl-${Date.now()}`,
+          object: "chat.completion.chunk",
+          created: Date.now(),
+          model: request.model,
+          choices: [
+            {
+              index: 0,
+              delta: {
+                content: content || null,
+                tool_calls: tool_calls.length > 0 ? tool_calls : undefined,
+              },
+              finish_reason: null,
+            },
+          ],
+        };
+        yield returnedChunk;
+      }
     }
+
+    const finalChunk: any = {
+      id: `chatcmpl-${Date.now()}`,
+      object: "chat.completion.chunk",
+      created: Date.now(),
+      model: request.model,
+      choices: [
+        {
+          index: 0,
+          delta: {},
+          finish_reason: "stop",
+        },
+      ],
+    };
+    yield finalChunk;
   }
 }
