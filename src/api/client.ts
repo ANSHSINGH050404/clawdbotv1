@@ -70,7 +70,7 @@ export class GeminiClient {
       : undefined;
 
     const responseStream = await this.ai.models.generateContentStream({
-      model: request.model || "gemini-2.5-flash",
+      model:process.env.MODEL!,
       contents,
       config: {
         systemInstruction,
