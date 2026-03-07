@@ -11,6 +11,7 @@ export class GeminiClient {
   async *streamChatCompletion(
     request: ChatCompletionRequest,
   ): AsyncGenerator<ChatCompletionChunk> {
+    
     const systemInstruction =
       request.messages.find((m) => m.role === "system")?.content || undefined;
 
